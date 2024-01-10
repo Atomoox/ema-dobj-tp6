@@ -3,7 +3,7 @@ package org.ema.imanip;
 public class Club {
     private long id;
 
-    private int version;
+    private int version = 0;
 
     private String fabricant;
 
@@ -28,5 +28,21 @@ public class Club {
 
     public void setFabricant(String fabricant) {
         this.fabricant = fabricant;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public void printInfos() {
+        System.out.println(
+                String.format(
+                        "Version: %d, id: %d, poids: %f, fabricant: %s",
+                        this.version,
+                        this.id,
+                        this.poids,
+                        this.fabricant
+                )
+        );
     }
 }

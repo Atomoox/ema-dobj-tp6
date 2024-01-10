@@ -85,6 +85,7 @@ public class EntityManagerImpl implements EntityManager{
                 .map(field -> {
                     try {
                         field.setAccessible(true);
+
                         return String.valueOf(field.get(entity));
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
@@ -110,6 +111,59 @@ public class EntityManagerImpl implements EntityManager{
 
     public <T> T merge (T entity) {
         generateTable(entity.getClass());
+
+        String objectId = null;
+
+        try {
+            Field idField = entity.getClass().getDeclaredField("id");
+            idField.setAccessible(true);
+            objectId = String.valueOf(idField.get(entity));
+        } catch (IllegalAccessException | NoSuchFieldException e) {
+            e.printStackTrace();
+            return null;
+        }
+
+        String tableName = entity.getClass().getSimpleName();
+        String[] fieldNameAndValues = Arrays.stream(entity.getClass().getDeclaredFields())
+                .map(field -> {
+                    try {
+                        field.setAccessible(true);
+                        String fieldName = field.getName();
+                        String fieldValue;
+
+                        if (fieldName.equals("version")) {
+                            fieldValue = String.valueOf((int) field.get(entity) + 1);
+                        } else {
+                            fieldValue = String.valueOf(field.get(entity));
+                        }
+
+                        if (getSqlTypeFromJavaTypes(field.getType().getSimpleName()).equals("VARCHAR(255)")) {
+                            return String.format("%s='%s'", fieldName, fieldValue);
+                        }
+                        return String.format("%s=%s", fieldName, fieldValue);
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                        return null;
+                    }
+                })
+                .toArray(String[]::new);
+
+
+
+        try (Connection connection = DriverManager.getConnection(DATABASE_URL, DATABASE_USER, DATABASE_PASSWORD)) {
+            String insertQuery = String.format(
+                    "UPDATE %s SET %s WHERE id=%s",
+                    tableName,
+                    String.join(", ", fieldNameAndValues),
+                    objectId
+            );
+
+            PreparedStatement insertStatement = connection.prepareStatement(insertQuery);
+            insertStatement.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
         return entity;
     }
 
@@ -124,7 +178,7 @@ public class EntityManagerImpl implements EntityManager{
             );
 
             PreparedStatement selectStatement = connection.prepareStatement(selectQuery);
-            selectStatement.setObject(1, 0);
+            selectStatement.setObject(1, primaryKey);
 
             ResultSet resultSet = selectStatement.executeQuery();
             if (resultSet.next()) {

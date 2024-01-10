@@ -18,24 +18,29 @@ public class persistance {
         em.persist(club);
     }
 
+
     @Test
-    public void testFind() throws SQLException {
+    public void testFindAndMerge() throws SQLException {
         Club club = new Club();
         club.setFabricant("un nom");
         club.setPoids(10.3);
+        club.setId(0);
 
         EntityManagerImpl em = new EntityManagerImpl();
-        Club trouve = em.<Club>find(Club.class, club.getId());
-        assertEquals(club.getFabricant(), trouve.getFabricant());
+        Club trouve1 = em.<Club>find(Club.class, club.getId());
+
+        trouve1.printInfos();
+
+        club.setFabricant("new");
+        club.setPoids(9.7);
+
+        em.merge(club);
+
+        Club trouve2 = em.<Club>find(Club.class, club.getId());
+
+        trouve2.printInfos();
+
+        assertEquals("un nom", trouve1.getFabricant());
+        assertEquals(club.getFabricant(), trouve2.getFabricant());
     }
-
-    @Test
-    public void testFields() {
-        Club club = new Club();
-        club.setFabricant("un nom");
-        club.setPoids(10.3);
-
-        System.out.println(club.getClass().getSimpleName());
-    }
-
 }
