@@ -16,15 +16,6 @@ public class persistance {
 
         EntityManagerImpl em = new EntityManagerImpl();
         em.persist(club);
-
-        Club club2 = new Club();
-        club2.setFabricant("NAH");
-        club2.setPoids(15.3);
-
-        em.persist(club2);
-
-        System.out.println(club.getId());
-        System.out.println(club2.getId());
     }
 
 
