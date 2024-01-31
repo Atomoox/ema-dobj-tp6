@@ -30,10 +30,6 @@ public class Club {
         this.fabricant = fabricant;
     }
 
-    public void setId(long id) {
-        this.id = id;
-    }
-
     public void printInfos() {
         System.out.println(
                 String.format(

@@ -16,6 +16,8 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.sql.Statement;
+
 
 public class EntityManagerImpl implements EntityManager{
     private static final String DATABASE_URL = "jdbc:hsqldb:mem:testdb";
@@ -45,7 +47,7 @@ public class EntityManagerImpl implements EntityManager{
                         "%s %s %s",
                         field.getName(),
                         getSqlTypeFromJavaTypes(field.getType().getName()),
-                        field.getName().equals("id") ? "PRIMARY KEY" : ""
+                        field.getName().equals("id") ? "IDENTITY PRIMARY KEY" : ""
                 ))
                 .toArray(String[]::new);
 
@@ -60,13 +62,13 @@ public class EntityManagerImpl implements EntityManager{
 
     private <T> void generateTable(Class<T> entityClass) {
         String query = generateQueryFromClassFields(entityClass);
-        try (Connection connection = DriverManager.getConnection(DATABASE_URL, DATABASE_USER, DATABASE_PASSWORD)) {;
-             PreparedStatement createTableStatement = connection.prepareStatement(
-                     String.format(
-                             "CREATE TABLE IF NOT EXISTS %s",
-                             query
-                     )
-             );
+        try (Connection connection = DriverManager.getConnection(DATABASE_URL, DATABASE_USER, DATABASE_PASSWORD)) {
+            PreparedStatement createTableStatement = connection.prepareStatement(
+                    String.format(
+                            "CREATE TABLE IF NOT EXISTS %s",
+                            query
+                    )
+            );
 
             createTableStatement.execute();
         } catch (SQLException e) {
@@ -79,13 +81,14 @@ public class EntityManagerImpl implements EntityManager{
 
         String tableName = entity.getClass().getSimpleName();
         String[] fieldNames = Arrays.stream(entity.getClass().getDeclaredFields())
+                .filter(field -> !field.getName().equals("id"))
                 .map(Field::getName)
                 .toArray(String[]::new);
         String[] fieldValues = Arrays.stream(entity.getClass().getDeclaredFields())
+                .filter(field -> !field.getName().equals("id"))
                 .map(field -> {
                     try {
                         field.setAccessible(true);
-
                         return String.valueOf(field.get(entity));
                     } catch (IllegalAccessException e) {
                         e.printStackTrace();
@@ -102,9 +105,18 @@ public class EntityManagerImpl implements EntityManager{
                     String.join(", ", Arrays.stream(fieldValues).map(value -> "'" + value + "'").toArray(String[]::new))
             );
 
-            PreparedStatement insertStatement = connection.prepareStatement(insertQuery);
+            PreparedStatement insertStatement = connection.prepareStatement(insertQuery, Statement.RETURN_GENERATED_KEYS);
             insertStatement.execute();
-        } catch (SQLException e) {
+
+            ResultSet generatedKeys = insertStatement.getGeneratedKeys();
+
+            while (generatedKeys.next()) {
+                long generatedId = generatedKeys.getLong(1);
+                Field idField = entity.getClass().getDeclaredField("id");
+                idField.setAccessible(true);
+                idField.set(entity, generatedId);
+            }
+        } catch (SQLException | NoSuchFieldException | IllegalAccessException e) {
             e.printStackTrace();
         }
     }
